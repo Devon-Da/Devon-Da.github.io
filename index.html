@@ -636,10 +636,12 @@
       }
 
       .marquee-item {
+        background: #090909;
         border-radius: 1rem;
         flex-shrink: 0;
         height: 210px;
         overflow: hidden;
+        position: relative;
         width: 320px;
       }
 
@@ -649,6 +651,31 @@
         height: 100%;
         object-fit: cover;
         width: 100%;
+      }
+
+      .marquee-item .marquee-poster {
+        height: 100%;
+        inset: 0;
+        object-fit: cover;
+        object-position: center;
+        position: absolute;
+        transition: opacity 180ms ease;
+        width: 100%;
+        z-index: 1;
+      }
+
+      .marquee-item .lazy-marquee-video {
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        position: relative;
+        width: 100%;
+        z-index: 2;
+      }
+
+      .marquee-item.is-video-ready .marquee-poster {
+        opacity: 0;
+        pointer-events: none;
       }
 
       .about {
@@ -1597,10 +1624,10 @@
         () => sources
       ).flat();
       const renderMarqueeMedia = (src) => {
-        const poster = src.replace("-web-ar.mp4", "-poster.jpg");
+        const poster = `marquee-posters-uniform/${src.replace("-web-ar.mp4", "-poster.jpg")}`;
         return `<span class="marquee-item">${
         src.endsWith(".mp4")
-          ? `<video class="lazy-marquee-video" data-src="${src}" poster="${poster}" preload="none" muted loop playsinline webkit-playsinline x5-playsinline x5-video-player-type="h5-page" disablepictureinpicture></video>`
+          ? `<img class="marquee-poster" src="${poster}" alt="" loading="lazy"><video class="lazy-marquee-video" data-src="${src}" poster="${poster}" preload="none" muted loop playsinline webkit-playsinline x5-playsinline x5-video-player-type="h5-page" disablepictureinpicture></video>`
           : `<img src="${src}" alt="" loading="lazy" />`
         }</span>`;
       };
@@ -1616,9 +1643,14 @@
       }
 
       function loadMarqueeVideo(video) {
+        const item = video.closest(".marquee-item");
+        const revealVideo = () => item?.classList.add("is-video-ready");
         if (!video.getAttribute("src")) {
           video.src = video.dataset.src;
+          video.addEventListener("loadeddata", revealVideo, { once: true });
           video.load();
+        } else if (video.readyState >= 2) {
+          revealVideo();
         }
       }
 
@@ -1630,7 +1662,7 @@
             const center = window.innerWidth / 2;
             return Math.abs(aBox.left + aBox.width / 2 - center) - Math.abs(bBox.left + bBox.width / 2 - center);
           });
-        const playbackLimit = window.matchMedia("(max-width: 767px)").matches ? 4 : 8;
+        const playbackLimit = window.matchMedia("(max-width: 767px)").matches ? 3 : 6;
         const activeVideos = new Set(candidates.slice(0, playbackLimit));
 
         document.querySelectorAll(".lazy-marquee-video").forEach((video) => {
