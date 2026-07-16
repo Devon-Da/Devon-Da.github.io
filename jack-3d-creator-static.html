@@ -241,6 +241,22 @@
         z-index: 0;
       }
 
+      .hero-poster {
+        height: 100%;
+        inset: 0;
+        object-fit: cover;
+        object-position: center;
+        position: absolute;
+        transition: opacity 220ms ease;
+        width: 100%;
+        z-index: 0;
+      }
+
+      .hero.is-video-ready .hero-poster {
+        opacity: 0;
+        pointer-events: none;
+      }
+
       .hero-overlay {
         background:
           linear-gradient(180deg, rgba(12, 12, 12, 0.62) 0%, rgba(12, 12, 12, 0.1) 45%, rgba(12, 12, 12, 0.7) 100%),
@@ -636,10 +652,12 @@
       }
 
       .marquee-item {
+        background: #090909;
         border-radius: 1rem;
         flex-shrink: 0;
         height: 210px;
         overflow: hidden;
+        position: relative;
         width: 320px;
       }
 
@@ -649,6 +667,31 @@
         height: 100%;
         object-fit: cover;
         width: 100%;
+      }
+
+      .marquee-item .marquee-poster {
+        height: 100%;
+        inset: 0;
+        object-fit: cover;
+        object-position: center;
+        position: absolute;
+        transition: opacity 180ms ease;
+        width: 100%;
+        z-index: 1;
+      }
+
+      .marquee-item .lazy-marquee-video {
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        position: relative;
+        width: 100%;
+        z-index: 2;
+      }
+
+      .marquee-item.is-video-ready .marquee-poster {
+        opacity: 0;
+        pointer-events: none;
       }
 
       .about {
@@ -1403,16 +1446,18 @@
     </div>
     <main class="app">
       <section class="hero">
-        <video aria-label="Interior design hero video" autoplay="" class="hero-loop" loop="" muted="" playsinline="" preload="auto">
+        <video aria-label="Interior design hero video" autoplay="" class="hero-loop" loop="" muted="" playsinline="" poster="hero-video-poster.jpg" preload="metadata">
+          <source src="hero-video-mobile.mp4" media="(max-width: 767px)" type="video/mp4">
           <source src="hero-video.mp4" type="video/mp4">
         </video>
+        <img class="hero-poster" src="hero-video-poster.jpg" alt="" fetchpriority="high" decoding="async">
         <div class="hero-overlay"></div>
         <nav class="nav nav-border-glow fade" style="--x: 0; --y: -20px; --pointer-x: 50%; --pointer-y: 50%;">
           <span class="nav-edge-light" aria-hidden="true"></span>
           <a href="#about">About</a>
           <a href="#skills">SKILLS</a>
           <a href="#projects">Projects</a>
-          <a href="/contact.html">Contact</a>
+          <a href="contact.html">Contact</a>
         </nav>
         <div class="hero-title-shell">
           <h1 class="hero-heading hero-title">HI, I’M DEVON</h1>
@@ -1422,7 +1467,7 @@
             <p>An interior designer dedicated to crafting striking and memorable works</p>
           </div>
           <div class="fade" style="--delay:.5s; --y:20px">
-            <a class="contact-button" href="/contact.html">Contact Me</a>
+            <a class="contact-button" href="contact.html">Contact Me</a>
           </div>
         </div>
       </section>
@@ -1458,7 +1503,7 @@
           </div>
           <div class="about-copy">
             <p class="animated-text" id="animatedText"></p>
-            <a class="contact-button" href="/contact.html?return=about">Contact Me</a>
+            <a class="contact-button" href="contact.html?return=about">Contact Me</a>
           </div>
         </div>
       </section>
@@ -1596,9 +1641,10 @@
         () => sources
       ).flat();
       const renderMarqueeMedia = (src) => {
+        const poster = `marquee-posters-uniform/${src.replace("-web-ar.mp4", "-poster.jpg")}`;
         return `<span class="marquee-item">${
         src.endsWith(".mp4")
-          ? `<video class="lazy-marquee-video" data-src="${src}" preload="none" muted loop playsinline webkit-playsinline x5-playsinline x5-video-player-type="h5-page" disablepictureinpicture></video>`
+          ? `<img class="marquee-poster" src="${poster}" alt="" loading="lazy"><video class="lazy-marquee-video" data-src="${src}" poster="${poster}" preload="none" muted loop playsinline webkit-playsinline x5-playsinline x5-video-player-type="h5-page" disablepictureinpicture></video>`
           : `<img src="${src}" alt="" loading="lazy" />`
         }</span>`;
       };
@@ -1613,26 +1659,52 @@
         }
       }
 
+      function loadMarqueeVideo(video) {
+        const item = video.closest(".marquee-item");
+        const revealVideo = () => item?.classList.add("is-video-ready");
+        if (!video.getAttribute("src")) {
+          video.src = video.dataset.src;
+          video.addEventListener("loadeddata", revealVideo, { once: true });
+          video.load();
+        } else if (video.readyState >= 2) {
+          revealVideo();
+        }
+      }
+
+      function refreshMarqueeVideoPlayback() {
+        const candidates = [...document.querySelectorAll('.lazy-marquee-video[data-in-view="true"]')]
+          .sort((a, b) => {
+            const aBox = a.getBoundingClientRect();
+            const bBox = b.getBoundingClientRect();
+            const center = window.innerWidth / 2;
+            return Math.abs(aBox.left + aBox.width / 2 - center) - Math.abs(bBox.left + bBox.width / 2 - center);
+          });
+        const playbackLimit = window.matchMedia("(max-width: 767px)").matches ? 3 : 6;
+        const activeVideos = new Set(candidates.slice(0, playbackLimit));
+
+        document.querySelectorAll(".lazy-marquee-video").forEach((video) => {
+          if (activeVideos.has(video)) {
+            loadMarqueeVideo(video);
+            updateMarqueeVideoPlayback(video, true);
+          } else {
+            updateMarqueeVideoPlayback(video, false);
+          }
+        });
+      }
+
       const lazyVideoObserver = "IntersectionObserver" in window
         ? new IntersectionObserver((entries) => {
             entries.forEach((entry) => {
               const video = entry.target;
-              if (entry.isIntersecting) {
-                video.dataset.inView = "true";
-                if (!video.getAttribute("src")) {
-                  video.src = video.dataset.src;
-                  video.load();
-                }
-                updateMarqueeVideoPlayback(video, true);
-              } else {
-                video.dataset.inView = "false";
-                updateMarqueeVideoPlayback(video, false);
-              }
+              video.dataset.inView = entry.isIntersecting ? "true" : "false";
             });
-          }, { rootMargin: "120px 240px" })
+            refreshMarqueeVideoPlayback();
+          }, { rootMargin: "80px 120px" })
         : null;
 
       let marqueeMediaStarted = false;
+      let marqueeMediaNearViewport = false;
+      let marqueeMediaScheduled = false;
       function startMarqueeMediaLoading() {
         if (marqueeMediaStarted) return;
         marqueeMediaStarted = true;
@@ -1640,20 +1712,35 @@
           if (lazyVideoObserver) {
             lazyVideoObserver.observe(video);
           } else {
-            video.src = video.dataset.src;
-            video.load();
+            video.dataset.inView = "true";
           }
         });
+        refreshMarqueeVideoPlayback();
       }
 
-      function scheduleMarqueeMediaLoading(delay = 900) {
+      function scheduleMarqueeMediaLoading(delay = 100) {
+        if (marqueeMediaStarted || marqueeMediaScheduled || !marqueeMediaNearViewport) return;
+        marqueeMediaScheduled = true;
         window.setTimeout(() => {
+          marqueeMediaScheduled = false;
           if ("requestIdleCallback" in window) {
             window.requestIdleCallback(startMarqueeMediaLoading, { timeout: 1200 });
           } else {
             startMarqueeMediaLoading();
           }
         }, delay);
+      }
+
+      if ("IntersectionObserver" in window) {
+        const marqueeMediaGateObserver = new IntersectionObserver((entries, observer) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return;
+          marqueeMediaNearViewport = true;
+          scheduleMarqueeMediaLoading();
+          observer.disconnect();
+        }, { rootMargin: "80px 0px", threshold: 0.01 });
+        marqueeMediaGateObserver.observe(document.getElementById("marquee"));
+      } else {
+        marqueeMediaNearViewport = true;
       }
       let marqueeParallax = 0;
       let marqueeStart = null;
@@ -1969,6 +2056,10 @@
         });
       }
 
+      function revealHeroVideo(video) {
+        video.closest(".hero")?.classList.add("is-video-ready");
+      }
+
       async function runOpeningAnimation() {
         if (prefersReducedMotion || !Element.prototype.animate) {
           showWithoutMotion();
@@ -1985,6 +2076,11 @@
         const heroTitle = document.querySelector(".hero-title");
         const nav = document.querySelector(".hero .nav");
         const heroBottomItems = [...document.querySelectorAll(".hero-bottom > *")];
+        if (heroVideo.readyState >= 2) {
+          revealHeroVideo(heroVideo);
+        } else {
+          heroVideo.addEventListener("loadeddata", () => revealHeroVideo(heroVideo), { once: true });
+        }
         heroVideo.play().catch(() => {});
 
         playMotion(openingMeta, [
@@ -2329,9 +2425,7 @@
           return;
         }
         updateHeroPlayback(heroVideoInView);
-        document.querySelectorAll('.lazy-marquee-video[data-in-view="true"]').forEach((video) => {
-          updateMarqueeVideoPlayback(video, true);
-        });
+        refreshMarqueeVideoPlayback();
       });
     </script>
   
