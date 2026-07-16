@@ -241,6 +241,22 @@
         z-index: 0;
       }
 
+      .hero-poster {
+        height: 100%;
+        inset: 0;
+        object-fit: cover;
+        object-position: center;
+        position: absolute;
+        transition: opacity 220ms ease;
+        width: 100%;
+        z-index: 0;
+      }
+
+      .hero.is-video-ready .hero-poster {
+        opacity: 0;
+        pointer-events: none;
+      }
+
       .hero-overlay {
         background:
           linear-gradient(180deg, rgba(12, 12, 12, 0.62) 0%, rgba(12, 12, 12, 0.1) 45%, rgba(12, 12, 12, 0.7) 100%),
@@ -1434,6 +1450,7 @@
           <source src="hero-video-mobile.mp4" media="(max-width: 767px)" type="video/mp4">
           <source src="hero-video.mp4" type="video/mp4">
         </video>
+        <img class="hero-poster" src="hero-video-poster.jpg" alt="" fetchpriority="high" decoding="async">
         <div class="hero-overlay"></div>
         <nav class="nav nav-border-glow fade" style="--x: 0; --y: -20px; --pointer-x: 50%; --pointer-y: 50%;">
           <span class="nav-edge-light" aria-hidden="true"></span>
@@ -2039,6 +2056,10 @@
         });
       }
 
+      function revealHeroVideo(video) {
+        video.closest(".hero")?.classList.add("is-video-ready");
+      }
+
       async function runOpeningAnimation() {
         if (prefersReducedMotion || !Element.prototype.animate) {
           showWithoutMotion();
@@ -2055,6 +2076,11 @@
         const heroTitle = document.querySelector(".hero-title");
         const nav = document.querySelector(".hero .nav");
         const heroBottomItems = [...document.querySelectorAll(".hero-bottom > *")];
+        if (heroVideo.readyState >= 2) {
+          revealHeroVideo(heroVideo);
+        } else {
+          heroVideo.addEventListener("loadeddata", () => revealHeroVideo(heroVideo), { once: true });
+        }
         heroVideo.play().catch(() => {});
 
         playMotion(openingMeta, [
