@@ -1446,7 +1446,7 @@
     </div>
     <main class="app">
       <section class="hero">
-        <video aria-label="Interior design hero video" autoplay="" class="hero-loop" loop="" muted="" playsinline="" poster="hero-video-poster.jpg" preload="metadata">
+        <video aria-label="Interior design hero video" autoplay="" class="hero-loop" loop="" muted="" playsinline="" webkit-playsinline="" x5-playsinline="" x5-video-player-type="h5-page" poster="hero-video-poster.jpg" preload="auto">
           <source src="hero-video-mobile.mp4" media="(max-width: 767px)" type="video/mp4">
           <source src="hero-video.mp4" type="video/mp4">
         </video>
@@ -2401,13 +2401,21 @@
 
       const heroLoopVideo = document.querySelector(".hero-loop");
       let heroVideoInView = true;
+      function requestHeroPlayback() {
+        heroLoopVideo.muted = true;
+        heroLoopVideo.defaultMuted = true;
+        heroLoopVideo.play().catch(() => {});
+      }
       function updateHeroPlayback(shouldPlay) {
         if (shouldPlay && !document.hidden) {
-          if (heroLoopVideo.paused) heroLoopVideo.play().catch(() => {});
+          if (heroLoopVideo.paused) requestHeroPlayback();
         } else if (!heroLoopVideo.paused) {
           heroLoopVideo.pause();
         }
       }
+      document.addEventListener("WeixinJSBridgeReady", requestHeroPlayback, false);
+      document.addEventListener("touchstart", requestHeroPlayback, { once: true, passive: true });
+      window.addEventListener("pageshow", () => updateHeroPlayback(heroVideoInView));
       if ("IntersectionObserver" in window) {
         const heroPlaybackObserver = new IntersectionObserver((entries) => {
           heroVideoInView = entries.some((entry) => entry.isIntersecting);
